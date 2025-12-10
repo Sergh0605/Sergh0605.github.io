@@ -3,7 +3,7 @@
 
     // Настройки плагина
     const PLUGIN_NAME = 'local_media';
-    const SERVER_URL = Lampa.Storage.get('local_media_server_url', 'http://192.168.1.148:3000');
+    const SERVER_URL = Lampa.Storage.get('local_media_server_url', 'http://10.101.41.173:3000');
     
     // Класс компонента
     function Component(object) {
@@ -277,7 +277,7 @@
                 param: {
                     name: 'server_url',
                     type: 'input',
-                    default: 'http://192.168.1.148:3000'
+                    default: 'http://10.101.41.173:3000'
                 },
                 field: {
                     name: 'URL сервера',
@@ -302,4 +302,5 @@
     }, 1000);
 
 })();
+
 
