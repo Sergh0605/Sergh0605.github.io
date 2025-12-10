@@ -3,16 +3,8 @@
 
     // Настройки плагина
     const PLUGIN_NAME = 'local_media';
-    const SERVER_URL = 'http://127.0.0.1:3000';
+    const SERVER_URL = Lampa.Storage.get('local_media_server_url', 'http://127.0.0.1:3000');
     
-    // Регистрация плагина
-    Lampa.Plugin.add({
-        component: PLUGIN_NAME,
-        name: 'Локальные медиа',
-        description: 'Просмотр локальных видеофайлов с вашего сервера',
-        version: '1.0.0'
-    });
-
     // Класс компонента
     function Component(object) {
         const comp = this;
@@ -22,7 +14,7 @@
 
         // Создание интерфейса
         this.create = function() {
-            html = Lampa.Template.js('items_line', {
+            html = Lampa.Template.get('items_line', {
                 title: 'Локальные медиа'
             });
 
@@ -36,7 +28,7 @@
 
         // Загрузка каталога с сервера
         function loadCatalog() {
-            const loader = Lampa.Template.js('loading');
+            const loader = $('<div class="broadcast__text">Загрузка...</div>');
             html.append(loader);
 
             network.silent(SERVER_URL + '/catalog.json', (data) => {
@@ -46,26 +38,20 @@
                     items = data.items;
                     build();
                 } else {
-                    html.append(Lampa.Template.js('empty', {
-                        title: 'Нет доступных видео',
-                        descr: 'Список пуст или сервер недоступен'
-                    }));
+                    html.append($('<div class="broadcast__text">Нет доступных видео</div>'));
                 }
             }, (error) => {
                 loader.remove();
-                Lampa.Noty.show('Ошибка загрузки: ' + error.statusText);
+                Lampa.Noty.show('Ошибка загрузки: ' + (error.statusText || 'Нет связи с сервером'));
                 
-                html.append(Lampa.Template.js('empty', {
-                    title: 'Ошибка подключения',
-                    descr: 'Не удалось подключиться к серверу'
-                }));
+                html.append($('<div class="broadcast__text">Ошибка подключения к серверу</div>'));
             });
         }
 
         // Построение списка элементов
         function build() {
             items.forEach((item, index) => {
-                const card = Lampa.Template.js('card', {
+                const card = Lampa.Template.get('card', {
                     title: item.title.replace('.mp4', '').replace('.mkv', '').replace('.avi', ''),
                     release_year: ''
                 });
@@ -120,27 +106,24 @@
                 return;
             }
 
-            const modal = $('<div class="selectbox-modal"></div>');
-            const items_container = $('<div class="selectbox-modal__items"></div>');
-
-            item.seasons.forEach((season) => {
-                const season_item = $(`<div class="selectbox-modal__item">${season.title}</div>`);
-                
-                season_item.on('click', () => {
-                    showEpisodes(season, item);
-                    modal.remove();
+            const select = [];
+            
+            item.seasons.forEach((season, index) => {
+                select.push({
+                    title: season.title,
+                    index: index,
+                    selected: index === 0
                 });
-
-                items_container.append(season_item);
             });
 
-            modal.append(items_container);
-            $('body').append(modal);
-
-            // Закрытие по клику вне модала
-            modal.on('click', (e) => {
-                if (e.target === modal[0]) {
-                    modal.remove();
+            Lampa.Select.show({
+                title: 'Выберите сезон',
+                items: select,
+                onSelect: (selected) => {
+                    showEpisodes(item.seasons[selected.index], item);
+                },
+                onBack: () => {
+                    Lampa.Controller.toggle('content');
                 }
             });
         }
@@ -152,29 +135,28 @@
                 return;
             }
 
-            const modal = $('<div class="selectbox-modal"></div>');
-            const items_container = $('<div class="selectbox-modal__items"></div>');
-
-            season.episodes.forEach((episode) => {
-                const episode_item = $(`<div class="selectbox-modal__item">${episode.title}</div>`);
-                
-                episode_item.on('click', () => {
-                    playVideo({
-                        title: `${show.title} - ${season.title} - ${episode.title}`,
-                        url: episode.url
-                    });
-                    modal.remove();
+            const select = [];
+            
+            season.episodes.forEach((episode, index) => {
+                select.push({
+                    title: episode.title,
+                    url: episode.url,
+                    index: index,
+                    selected: index === 0
                 });
-
-                items_container.append(episode_item);
             });
 
-            modal.append(items_container);
-            $('body').append(modal);
-
-            modal.on('click', (e) => {
-                if (e.target === modal[0]) {
-                    modal.remove();
+            Lampa.Select.show({
+                title: 'Выберите эпизод',
+                items: select,
+                onSelect: (selected) => {
+                    playVideo({
+                        title: `${show.title} - ${season.title} - ${selected.title}`,
+                        url: selected.url
+                    });
+                },
+                onBack: () => {
+                    showSeasons(show);
                 }
             });
         }
@@ -226,44 +208,83 @@
         this.background = function() {};
     }
 
-    // Добавление пункта в главное меню
-    Lampa.Listener.follow('app', (e) => {
-        if (e.type === 'ready') {
-            // Добавляем пункт меню
-            Lampa.Menu.add({
-                title: 'Локальные медиа',
-                component: PLUGIN_NAME,
-                icon: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z" fill="currentColor"/></svg>'
-            });
-        }
-    });
-
     // Регистрация компонента
     Lampa.Component.add(PLUGIN_NAME, Component);
 
-    // Установка настроек плагина (опционально)
-    Lampa.Settings.listener.follow('open', (e) => {
-        if (e.name === 'main') {
-            Lampa.SettingsApi.addComponent({
+    // Добавление пункта в главное меню - ИСПРАВЛЕННАЯ ВЕРСИЯ
+    function addMenuItem() {
+        const icon = `<svg width="36" height="36" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="2" y="2" width="20" height="20" rx="2" stroke="currentColor" stroke-width="2"/>
+            <path d="M9 8L15 12L9 16V8Z" fill="currentColor"/>
+        </svg>`;
+
+        // Создаем пункт меню
+        const menu_item = $('<li class="menu__item selector" data-action="activity">\
+            <div class="menu__ico">' + icon + '</div>\
+            <div class="menu__text">Локальные медиа</div>\
+        </li>');
+
+        // Обработчик клика
+        menu_item.on('hover:enter', function() {
+            Lampa.Activity.push({
+                url: '',
+                title: 'Локальные медиа',
                 component: PLUGIN_NAME,
+                page: 1
+            });
+        });
+
+        // Добавляем в меню после элемента "Главная" или в начало
+        $('.menu .menu__list').eq(0).append(menu_item);
+    }
+
+    // Ждем инициализации приложения
+    if (window.appready) {
+        addMenuItem();
+    } else {
+        Lampa.Listener.follow('app', function(e) {
+            if (e.type == 'ready') {
+                addMenuItem();
+            }
+        });
+    }
+
+    // Настройки плагина
+    Lampa.Template.add('settings_local_media', `
+        <div>
+            <div class="settings-param selector" data-type="input" data-name="server_url">
+                <div class="settings-param__name">URL сервера</div>
+                <div class="settings-param__value"></div>
+            </div>
+        </div>
+    `);
+
+    Lampa.Settings.listener.follow('open', function(e) {
+        if (e.name == 'main') {
+            // Добавляем раздел в настройки
+            Lampa.SettingsApi.addComponent({
+                component: 'local_media',
                 name: 'Локальные медиа',
-                icon: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z" fill="currentColor"/></svg>'
+                icon: `<svg width="36" height="36" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <rect x="2" y="2" width="20" height="20" rx="2" stroke="currentColor" stroke-width="2"/>
+                    <path d="M9 8L15 12L9 16V8Z" fill="currentColor"/>
+                </svg>`
             });
 
+            // Добавляем параметр
             Lampa.SettingsApi.addParam({
-                component: PLUGIN_NAME,
+                component: 'local_media',
                 param: {
                     name: 'server_url',
                     type: 'input',
-                    default: SERVER_URL,
-                    placeholder: 'http://127.0.0.1:3000'
+                    default: 'http://127.0.0.1:3000'
                 },
                 field: {
                     name: 'URL сервера',
                     description: 'Адрес вашего локального сервера'
                 },
-                onRender: (item) => {
-                    item.on('change', (e, value) => {
+                onRender: function(item) {
+                    item.on('change', function(e, value) {
                         Lampa.Storage.set('local_media_server_url', value);
                     });
                 }
@@ -271,6 +292,13 @@
         }
     });
 
+    // Вывод информации об успешной установке
+    console.log('[Local Media] Плагин загружен. Версия 1.0.1');
+    console.log('[Local Media] Сервер:', SERVER_URL);
+    
+    // Показываем уведомление о загрузке
+    setTimeout(() => {
+        Lampa.Noty.show('Плагин "Локальные медиа" загружен успешно');
+    }, 1000);
+
 })();
-
-
