@@ -3,7 +3,7 @@
 
     // Настройки плагина
     const PLUGIN_NAME = 'local_media';
-    const SERVER_URL = 'http://192.168.1.41:3000';
+    const SERVER_URL = 'http://127.0.0.1:3000';
     
     // Регистрация плагина
     Lampa.Plugin.add({
@@ -272,3 +272,4 @@
     });
 
 })();
+
