@@ -256,7 +256,7 @@
                     name: 'server_url',
                     type: 'input',
                     default: SERVER_URL,
-                    placeholder: 'http://192.168.1.41:3000'
+                    placeholder: 'http://127.0.0.1:3000'
                 },
                 field: {
                     name: 'URL сервера',
@@ -272,4 +272,5 @@
     });
 
 })();
+
 
